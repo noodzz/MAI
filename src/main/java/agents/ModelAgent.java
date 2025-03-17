@@ -65,7 +65,6 @@ public class ModelAgent extends Agent {
         createVehicleAgents();
         // Ожидание команд от ServerAgent
         addBehaviour(new ServerCommandBehaviour());
-        addBehaviour(new VehicleCreationBehaviour());
         logger.info("ModelAgent готов к работе.");
     }
 
@@ -156,7 +155,12 @@ public class ModelAgent extends Agent {
     private void distributeGoods() {
         DistributionAlgorithm algorithm = new DistributionAlgorithm(this, goods, vehicleAgents, logger);
         Map<String, List<Good>> distribution = algorithm.distributeGoods();
-
+        for (Good good : goods) {
+            if (!isGoodAssignedToVehicle(good, distribution)) {
+                // Если товар не был назначен, создаем новый транспорт для него
+                createNewVehicleAgent(good);
+            }
+        }
         sendAssignments(distribution);
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -195,22 +199,11 @@ public class ModelAgent extends Agent {
             e.printStackTrace();
         }
     }
-    private class VehicleCreationBehaviour extends CyclicBehaviour {
-        @Override
-        public void action() {
-            ACLMessage msg = receive(MessageTemplate.MatchPerformative(ACLMessage.REQUEST));
 
-            if (msg != null && msg.getContent().startsWith("NEW_VEHICLE:")) {
-                String goodId = msg.getContent().substring(12);
-                createNewVehicleAgent(goodId);
-            } else {
-                block();
-            }
-        }
-    }
-    private void createNewVehicleAgent(String goodId) {
+    private void createNewVehicleAgent(Good good) {
         String newVehicleName = "Vehicle-" + (vehicleAgents.size() + 1);
         try {
+            // Создаем нового транспортного агента
             AgentController newVehicle = getContainerController()
                     .createNewAgent(newVehicleName, "agents.VehicleAgent", new Object[]{});
             newVehicle.start();
@@ -222,7 +215,7 @@ public class ModelAgent extends Agent {
             // Создаем структуру распределения и передаем товар новому агенту
             Map<String, List<Good>> newDistribution = new HashMap<>();
             List<Good> goodsList = new ArrayList<>();
-            goodsList.add(new Good(goodId, 0, new ArrayList<>())); // Создаем объект товара
+            goodsList.add(good);  // Передаем объект товара в новый транспорт
             newDistribution.put(newVehicleName, goodsList);
 
             sendAssignments(newDistribution);
@@ -230,6 +223,16 @@ public class ModelAgent extends Agent {
             logger.severe("Ошибка при создании нового VehicleAgent: " + e.getMessage());
         }
     }
+
+    private boolean isGoodAssignedToVehicle(Good good, Map<String, List<Good>> distribution) {
+        for (List<Good> vehicleGoods : distribution.values()) {
+            if (vehicleGoods.contains(good)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
 
 }

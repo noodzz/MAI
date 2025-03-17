@@ -169,6 +169,7 @@ public class DistributionAlgorithm {
      */
     private void handleIncompatibleGoods(List<Good> incompatibleGoods, Map<String, List<Good>> distribution) {
         logger.info("Обработка несовместимых товаров: " + incompatibleGoods.size() + " товаров");
+        boolean newVehicleRequested = false;
 
         for (Good good : incompatibleGoods) {
             // Если вес товара больше 1, можно разделить
@@ -185,6 +186,10 @@ public class DistributionAlgorithm {
             } else {
                 // Если товар нельзя разделить, пытаемся найти подходящий транспорт
                 assignGoodToCompatibleVehicle(good, distribution);
+            }
+            if (!newVehicleRequested) {
+                newVehicleRequested = true; // Отметим, что запрос на новый транспорт уже отправлен
+                requestNewVehicleForGood(good); // Запрос на создание нового транспорта
             }
             try {
                 Thread.sleep(3000);
@@ -236,7 +241,7 @@ public class DistributionAlgorithm {
             logger.severe("Не удалось распределить товар " + good.getId() + " после " + maxAttempts + " попыток.");
 
             // Отправляем запрос в ModelAgent на создание новой машины
-            requestNewVehicleForGood(good);
+
         }
     }
 
