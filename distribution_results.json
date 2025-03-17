@@ -1,0 +1,107 @@
+{
+  "Vehicle-0": [
+    {
+      "id": "toxic_waste",
+      "weight": 40,
+      "incompatibilities": [
+        "apples",
+        "bananas",
+        "oranges",
+        "meat",
+        "fish",
+        "chemicals",
+        "dairy",
+        "bread",
+        "eggs"
+      ]
+    }
+  ],
+  "Vehicle-1": [
+    {
+      "id": "meat",
+      "weight": 30,
+      "incompatibilities": [
+        "apples",
+        "chemicals"
+      ]
+    },
+    {
+      "id": "oranges",
+      "weight": 12,
+      "incompatibilities": [
+        "fish"
+      ]
+    },
+    {
+      "id": "bread_part0",
+      "weight": 5,
+      "incompatibilities": [
+        "chemicals"
+      ]
+    },
+    {
+      "id": "bread_part1",
+      "weight": 5,
+      "incompatibilities": [
+        "chemicals"
+      ]
+    },
+    {
+      "id": "dairy_part0",
+      "weight": 11,
+      "incompatibilities": [
+        "chemicals"
+      ]
+    },
+    {
+      "id": "dairy_part1",
+      "weight": 11,
+      "incompatibilities": [
+        "chemicals"
+      ]
+    },
+    {
+      "id": "bananas_part0",
+      "weight": 7,
+      "incompatibilities": [
+        "chemicals"
+      ]
+    },
+    {
+      "id": "bananas_part1",
+      "weight": 8,
+      "incompatibilities": [
+        "chemicals"
+      ]
+    }
+  ],
+  "Vehicle-2": [
+    {
+      "id": "chemicals",
+      "weight": 25,
+      "incompatibilities": [
+        "bananas",
+        "meat",
+        "dairy",
+        "bread",
+        "eggs"
+      ]
+    },
+    {
+      "id": "fish_part0",
+      "weight": 9,
+      "incompatibilities": [
+        "apples",
+        "oranges"
+      ]
+    },
+    {
+      "id": "fish_part1",
+      "weight": 9,
+      "incompatibilities": [
+        "apples",
+        "oranges"
+      ]
+    }
+  ]
+}

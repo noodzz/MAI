@@ -1,0 +1,56 @@
+{
+  "goods": [
+    {
+      "id": "apples",
+      "weight": 20,
+      "incompatibilities": ["fish", "meat"]
+    },
+    {
+      "id": "bananas",
+      "weight": 15,
+      "incompatibilities": ["chemicals"]
+    },
+    {
+      "id": "oranges",
+      "weight": 12,
+      "incompatibilities": ["fish"]
+    },
+    {
+      "id": "meat",
+      "weight": 30,
+      "incompatibilities": ["apples", "chemicals"]
+    },
+    {
+      "id": "fish",
+      "weight": 18,
+      "incompatibilities": ["apples", "oranges"]
+    },
+    {
+      "id": "chemicals",
+      "weight": 25,
+      "incompatibilities": ["bananas", "meat", "dairy", "bread", "eggs"]
+    },
+    {
+      "id": "dairy",
+      "weight": 22,
+      "incompatibilities": ["chemicals"]
+    },
+    {
+      "id": "bread",
+      "weight": 10,
+      "incompatibilities": ["chemicals"]
+    },
+    {
+      "id": "eggs",
+      "weight": 5,
+      "incompatibilities": [
+        "meat"
+      ]
+    },
+    {
+      "id": "toxic_waste",
+      "weight": 40,
+      "incompatibilities": ["apples", "bananas", "oranges", "meat", "fish", "chemicals", "dairy", "bread", "eggs"]
+    }
+  ]
+}
