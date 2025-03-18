@@ -1,11 +1,8 @@
 package model;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.lang.acl.ACLMessage;
-import messages.AssignmentMessage;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,15 +10,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-/**
- * Класс, реализующий алгоритм распределения товаров между транспортными агентами.
- * Отвечает только за логику распределения, не зависит от конкретной реализации агентов.
- */
 public class DistributionAlgorithm {
     private final List<Good> goods;
     private final Map<String, AID> vehicleAgents;
     private final Logger logger;
-    private final Agent myAgent;
+    private final Agent agent;
+    private final AID serverAgent;
 
     /**
      * Конструктор алгоритма распределения
@@ -30,11 +24,12 @@ public class DistributionAlgorithm {
      * @param vehicleAgents карта имен транспортных агентов и их идентификаторов
      * @param logger логгер для записи сообщений
      */
-    public DistributionAlgorithm(Agent myAgent, List<Good> goods, Map<String, AID> vehicleAgents, Logger logger) {
-        this.myAgent = myAgent;
+    public DistributionAlgorithm(List<Good> goods, Map<String, AID> vehicleAgents, Logger logger, Agent agent, AID serverAgent) {
         this.goods = new ArrayList<>(goods);
         this.vehicleAgents = vehicleAgents;
         this.logger = logger;
+        this.agent = agent;
+        this.serverAgent = serverAgent;
     }
 
     /**
@@ -49,7 +44,7 @@ public class DistributionAlgorithm {
         int totalWeight = goods.stream().mapToInt(Good::getWeight).sum();
         logger.info("Общий вес всех товаров: " + totalWeight);
         try {
-            Thread.sleep(3000);
+            Thread.sleep(2000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -58,7 +53,7 @@ public class DistributionAlgorithm {
         int targetWeightPerVehicle = totalWeight / numVehicles;
         logger.info("Целевой вес на каждый транспорт: " + targetWeightPerVehicle);
         try {
-            Thread.sleep(3000);
+            Thread.sleep(2000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -76,7 +71,39 @@ public class DistributionAlgorithm {
         distributeGoodsGreedy(sortedGoods, initialDistribution, targetWeightPerVehicle);
 
         // Проверка и корректировка совместимости товаров
-        return checkAndFixIncompatibilities(initialDistribution);
+        Map<String, List<Good>> finalDistribution = checkAndFixIncompatibilities(initialDistribution);
+        List<Good> unassignedGoods = new ArrayList<>();
+        for (Good good : goods) {
+            if (!good.isAssigned() && !isGoodSplitAndAssigned(good, finalDistribution)) { // Учитываем только нераспределенные товары
+                unassignedGoods.add(good);
+            }
+        }
+
+        if (!unassignedGoods.isEmpty()) {
+            logger.warning("Некоторые товары не удалось распределить: " + unassignedGoods);
+        }
+
+        return finalDistribution;
+    }
+    /**
+     * Проверяет, были ли все части товара распределены.
+     *
+     * @param good товар для проверки
+     * @param distribution текущее распределение
+     * @return true, если все части товара распределены, иначе false
+     */
+    private boolean isGoodSplitAndAssigned(Good good, Map<String, List<Good>> distribution) {
+        String normalizedGoodId = good.normalizeId(good.getId());
+
+        for (List<Good> assignedGoods : distribution.values()) {
+            for (Good assignedGood : assignedGoods) {
+                if (normalizedGoodId.equals(assignedGood.normalizeId(assignedGood.getId()))) {
+                    assignedGood.setAssigned(true);  // Обновляем статус
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -88,6 +115,11 @@ public class DistributionAlgorithm {
      */
     private void distributeGoodsGreedy(List<Good> sortedGoods, Map<String, List<Good>> distribution, int targetWeight) {
         logger.info("Применение жадного алгоритма распределения");
+
+        ACLMessage startGreedyNotification = new ACLMessage(ACLMessage.INFORM);
+        startGreedyNotification.addReceiver(serverAgent);
+        startGreedyNotification.setContent("NOTIFICATION: Начало жадного алгоритма распределения.");
+        agent.send(startGreedyNotification);
 
         // Карта текущих весов транспортов
         Map<String, Integer> currentWeights = new HashMap<>();
@@ -109,19 +141,26 @@ public class DistributionAlgorithm {
                 // Обновляем текущий вес
                 currentWeights.put(targetVehicle, currentWeights.get(targetVehicle) + good.getWeight());
                 logger.info("Товар " + good.getId() + " назначен транспорту " + targetVehicle);
+
+                ACLMessage assignmentNotification = new ACLMessage(ACLMessage.INFORM);
+                assignmentNotification.addReceiver(serverAgent);
+                assignmentNotification.setContent("NOTIFICATION: Товар " + good.getId() + " назначен транспорту " + targetVehicle);
+                agent.send(assignmentNotification);
             }
             try {
-                Thread.sleep(3000);
+                Thread.sleep(2000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
 
         // Логирование результатов
-        for (Map.Entry<String, List<Good>> entry : distribution.entrySet()) {
-            int weight = entry.getValue().stream().mapToInt(Good::getWeight).sum();
-            logger.info("Транспорт " + entry.getKey() + " получил товары общим весом " + weight);
-        }
+        logTotalWeights(distribution);
+
+        ACLMessage endGreedyNotification = new ACLMessage(ACLMessage.INFORM);
+        endGreedyNotification.addReceiver(serverAgent);
+        endGreedyNotification.setContent("NOTIFICATION: Жадный алгоритм распределения завершен.");
+        agent.send(endGreedyNotification);
     }
 
     /**
@@ -169,34 +208,33 @@ public class DistributionAlgorithm {
      */
     private void handleIncompatibleGoods(List<Good> incompatibleGoods, Map<String, List<Good>> distribution) {
         logger.info("Обработка несовместимых товаров: " + incompatibleGoods.size() + " товаров");
-        boolean newVehicleRequested = false;
+        List<Good> newGoods = new ArrayList<>();
 
         for (Good good : incompatibleGoods) {
-            // Если вес товара больше 1, можно разделить
             if (good.getWeight() > 1) {
                 logger.info("Разделение товара " + good.getId() + " на части");
 
-                // Разделяем товар на две части
                 List<Good> parts = good.split(new int[]{good.getWeight() / 2, good.getWeight() - good.getWeight() / 2});
 
-                // Пытаемся распределить части по разным транспортам
                 for (Good part : parts) {
                     assignGoodToCompatibleVehicle(part, distribution);
+                    part.setAssigned(true);
+                    newGoods.add(part);
                 }
             } else {
-                // Если товар нельзя разделить, пытаемся найти подходящий транспорт
-                assignGoodToCompatibleVehicle(good, distribution);
-            }
-            if (!newVehicleRequested) {
-                newVehicleRequested = true; // Отметим, что запрос на новый транспорт уже отправлен
-                requestNewVehicleForGood(good); // Запрос на создание нового транспорта
-            }
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                newGoods.add(good);
             }
         }
+
+        goods.clear(); // Очищаем список
+        goods.addAll(newGoods);
+        logTotalWeights(distribution);
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
     }
 
     /**
@@ -204,8 +242,9 @@ public class DistributionAlgorithm {
      *
      * @param good товар для назначения
      * @param distribution текущее распределение
+     * @return true, если товар успешно назначен, иначе false
      */
-    private void assignGoodToCompatibleVehicle(Good good, Map<String, List<Good>> distribution) {
+    private boolean assignGoodToCompatibleVehicle(Good good, Map<String, List<Good>> distribution) {
         logger.info("Поиск совместимого транспорта для товара " + good.getId());
         int maxAttempts = 3;
         int attempts = 0;
@@ -222,9 +261,10 @@ public class DistributionAlgorithm {
                 if (isCompatible) {
                     vehicleGoods.add(good);
                     logger.info("Товар " + good.getId() + " назначен транспорту " + vehicleName);
+                    good.setAssigned(true);
                     assigned = true;
                     try {
-                        Thread.sleep(3000);
+                        Thread.sleep(2000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -239,54 +279,23 @@ public class DistributionAlgorithm {
 
         if (!assigned) {
             logger.severe("Не удалось распределить товар " + good.getId() + " после " + maxAttempts + " попыток.");
-
-            // Отправляем запрос в ModelAgent на создание новой машины
-
         }
+        return assigned;
     }
-
-    /**
-     * Создает сообщения для отправки транспортным агентам
-     *
-     * @param distribution распределение товаров
-     * @return карта сообщений для каждого транспорта
-     */
-    public Map<String, ACLMessage> createAssignmentMessages(Map<String, List<Good>> distribution) {
-        Map<String, ACLMessage> messages = new HashMap<>();
-        Gson gson = new GsonBuilder().create();
+    private void logTotalWeights(Map<String, List<Good>> distribution) {
+        logger.info("Итоговые веса транспортных средств:");
 
         for (Map.Entry<String, List<Good>> entry : distribution.entrySet()) {
-            AssignmentMessage assignment = new AssignmentMessage(
-                    "ASSIGNMENT",
-                    entry.getValue(),
-                    entry.getKey()
-            );
+            int totalWeight = entry.getValue().stream().mapToInt(Good::getWeight).sum();
+            logger.info("Транспорт " + entry.getKey() + " имеет общий вес товаров: " + totalWeight);
 
-            ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
-            msg.setContent(gson.toJson(assignment)); // Явная сериализация в JSON
-            messages.put(entry.getKey(), msg);
+            ACLMessage vehicleNotification = new ACLMessage(ACLMessage.INFORM);
+            vehicleNotification.addReceiver(serverAgent);
+            vehicleNotification.setContent("NOTIFICATION: Транспорт " + entry.getKey() + " имеет общий вес товаров: " + totalWeight);
+            agent.send(vehicleNotification);
         }
-        return messages;
-    }
-    /**
-     * Запрос на создание нового транспортного агента у ModelAgent
-     */
-    private void requestNewVehicleForGood(Good good) {
-        logger.warning("Товар " + good.getId() + " не подошел ни одному транспорту! Запрос на создание нового транспорта.");
-
-        ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
-        request.addReceiver(new AID("ModelAgent", AID.ISLOCALNAME));
-        request.setContent("NEW_VEHICLE:" + good.getId());
-
-        sendMessage(request);
     }
 
-    /**
-     * Отправка сообщения ModelAgent
-     */
-    private void sendMessage(ACLMessage msg) {
-        myAgent.send(msg);
-    }
 
 
 }

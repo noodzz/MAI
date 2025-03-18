@@ -4,9 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import jade.core.AID;
 import jade.core.Agent;
-import jade.core.behaviours.Behaviour;
 import jade.core.behaviours.CyclicBehaviour;
-import jade.core.behaviours.SequentialBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
@@ -28,9 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-/**
- * Агент модели, управляемый ServerAgent. Занимается только распределением товаров.
- */
+
 public class ModelAgent extends Agent {
     private List<Good> goods;
     private Map<String, AID> vehicleAgents;
@@ -138,7 +134,7 @@ public class ModelAgent extends Agent {
     private void loadGoodsFromJson() {
         try {
             JSONParser parser = new JSONParser();
-            JSONObject jsonObject = (JSONObject) parser.parse(new FileReader("C:\\Users\\silez\\IdeaProjects\\MAI\\src\\main\\resources\\goods.json"));
+            JSONObject jsonObject = (JSONObject) parser.parse(new FileReader("src/main/resources/goods.json"));
             JSONArray goodsArray = (JSONArray) jsonObject.get("goods");
             for (Object obj : goodsArray) {
                 JSONObject goodJson = (JSONObject) obj;
@@ -147,36 +143,52 @@ public class ModelAgent extends Agent {
                 goods.add(new Good(id, weight, (JSONArray) goodJson.get("incompatibilities")));
             }
             logger.info("Загружено товаров: " + goods.size());
+            ACLMessage notification = new ACLMessage(ACLMessage.INFORM);
+            notification.addReceiver(serverAgent);
+            notification.setContent("NOTIFICATION: Загружено " + goods.size() + " товаров.");
+            send(notification);
         } catch (Exception e) {
             logger.severe("Ошибка загрузки товаров: " + e.getMessage());
         }
     }
 
     private void distributeGoods() {
-        DistributionAlgorithm algorithm = new DistributionAlgorithm(this, goods, vehicleAgents, logger);
+        DistributionAlgorithm algorithm = new DistributionAlgorithm(goods, vehicleAgents, logger, this, serverAgent);
         Map<String, List<Good>> distribution = algorithm.distributeGoods();
+        ACLMessage startNotification = new ACLMessage(ACLMessage.INFORM);
+        startNotification.addReceiver(serverAgent);
+        startNotification.setContent("NOTIFICATION: Начало распределения товаров.");
+        send(startNotification);
+        List<Good> unassignedGoods = new ArrayList<>();
         for (Good good : goods) {
-            if (!isGoodAssignedToVehicle(good, distribution)) {
-                // Если товар не был назначен, создаем новый транспорт для него
-                createNewVehicleAgent(good);
+            if (!isGoodFullyAssigned(good, distribution)) {
+                unassignedGoods.add(good);
             }
+
         }
         sendAssignments(distribution);
 
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        ACLMessage completionMsg = new ACLMessage(ACLMessage.INFORM);
-        completionMsg.addReceiver(serverAgent);
-        completionMsg.setContent("DISTRIBUTION_COMPLETE");
-        send(completionMsg);
+        Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().setPrettyPrinting().create();
 
         ACLMessage distributionMsg = new ACLMessage(ACLMessage.INFORM);
         distributionMsg.addReceiver(serverAgent);
         distributionMsg.setContent("DISTRIBUTION_RESULTS:" + gson.toJson(distribution));
         send(distributionMsg);
 
+        if (!unassignedGoods.isEmpty()) {
+            ACLMessage unassignedMsg = new ACLMessage(ACLMessage.INFORM);
+            unassignedMsg.addReceiver(serverAgent);
+            unassignedMsg.setContent("UNASSIGNED_GOODS:" + gson.toJson(unassignedGoods));
+            send(unassignedMsg);
+            logger.warning("Некоторые товары не удалось распределить: " + unassignedGoods);
+        }
+
         logger.info("Распределение завершено. Сервер уведомлен.");
         saveResultsToJson(distribution);
+        ACLMessage endNotification = new ACLMessage(ACLMessage.INFORM);
+        endNotification.addReceiver(serverAgent);
+        endNotification.setContent("NOTIFICATION: Распределение товаров завершено.");
+        send(endNotification);
     }
 
 
@@ -189,7 +201,8 @@ public class ModelAgent extends Agent {
         });
     }
     public void saveResultsToJson(Map<String, List<Good>> distribution) {
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().setPrettyPrinting().create();
+
         String fileName = "distribution_results.json";
 
         try (FileWriter writer = new FileWriter(fileName)) {
@@ -199,40 +212,16 @@ public class ModelAgent extends Agent {
             e.printStackTrace();
         }
     }
+    private boolean isGoodFullyAssigned(Good good, Map<String, List<Good>> distribution) {
+        String normalizedId = good.normalizeId(good.getId());
 
-    private void createNewVehicleAgent(Good good) {
-        String newVehicleName = "Vehicle-" + (vehicleAgents.size() + 1);
-        try {
-            // Создаем нового транспортного агента
-            AgentController newVehicle = getContainerController()
-                    .createNewAgent(newVehicleName, "agents.VehicleAgent", new Object[]{});
-            newVehicle.start();
-
-            // Добавляем новый транспорт в vehicleAgents
-            vehicleAgents.put(newVehicleName, new AID(newVehicleName, AID.ISLOCALNAME));
-            logger.info("Создан новый транспортный агент: " + newVehicleName);
-
-            // Создаем структуру распределения и передаем товар новому агенту
-            Map<String, List<Good>> newDistribution = new HashMap<>();
-            List<Good> goodsList = new ArrayList<>();
-            goodsList.add(good);  // Передаем объект товара в новый транспорт
-            newDistribution.put(newVehicleName, goodsList);
-
-            sendAssignments(newDistribution);
-        } catch (Exception e) {
-            logger.severe("Ошибка при создании нового VehicleAgent: " + e.getMessage());
-        }
-    }
-
-    private boolean isGoodAssignedToVehicle(Good good, Map<String, List<Good>> distribution) {
-        for (List<Good> vehicleGoods : distribution.values()) {
-            if (vehicleGoods.contains(good)) {
-                return true;
+        for (List<Good> assignedGoods : distribution.values()) {
+            for (Good assignedGood : assignedGoods) {
+                if (normalizedId.equals(assignedGood.normalizeId(assignedGood.getId()))) {
+                    return true;
+                }
             }
         }
         return false;
     }
-
-
-
 }

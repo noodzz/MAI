@@ -3,22 +3,33 @@ package model;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import com.google.gson.annotations.Expose;
+
 
 public class Good {
+    @Expose
     private String id;
+    @Expose
     private int weight;
+    @Expose
     private List<String> incompatibilities;
+
+    private boolean isAssigned; // Флаг для пометки распределенных товаров
+
 
     public Good(String id, int weight, List<String> incompatibilities) {
         this.id = id;
         this.weight = weight;
         this.incompatibilities = incompatibilities;
+        this.isAssigned = false; // По умолчанию товар не распределен
+
     }
 
     // Геттеры и сеттеры
     public String getId() { return id; }
     public int getWeight() { return weight; }
-
+    public boolean isAssigned() { return isAssigned; }
+    public void setAssigned(boolean assigned) { isAssigned = assigned; }
 
     // Метод для разделения товара на части
     public List<Good> split(int[] partWeights) {
@@ -40,8 +51,16 @@ public class Good {
 
         return !this.incompatibilities.contains(otherId) && !other.incompatibilities.contains(thisId);
     }
-    private String normalizeId(String id) {
+    public String normalizeId(String id) {
         return id.replaceAll("(_part\\d+|_batch\\d+|_unit\\d+|_box\\d+)$", "");
+    }
+    @Override
+    public String toString() {
+        return "Good{" +
+                "id='" + id + '\'' +
+                ", weight=" + weight +
+                ", incompatibilities=" + incompatibilities +
+                '}';
     }
 }
 

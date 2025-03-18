@@ -31,6 +31,11 @@
       "incompatibilities": ["bananas", "meat", "dairy", "bread", "eggs"]
     },
     {
+      "id": "hygiene_products",
+      "weight": 10,
+      "incompatibilities": ["meat"]
+    },
+    {
       "id": "dairy",
       "weight": 22,
       "incompatibilities": ["chemicals"]
@@ -46,11 +51,6 @@
       "incompatibilities": [
         "meat"
       ]
-    },
-    {
-      "id": "toxic_waste",
-      "weight": 40,
-      "incompatibilities": ["apples", "bananas", "oranges", "meat", "fish", "chemicals", "dairy", "bread", "eggs"]
     }
   ]
 }

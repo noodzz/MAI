@@ -69,6 +69,13 @@ public class ServerAgent extends Agent {
                 if (content.startsWith("DISTRIBUTION_RESULTS:")) {
                     String results = content.substring(21);
                     notifyClients("Распределение товаров завершено. Результаты: " + results);
+                } else if (content.startsWith("UNASSIGNED_GOODS:")) {
+                    String unassignedGoods = content.substring(17);
+                    notifyClients("Некоторые товары не удалось распределить: " + unassignedGoods);
+                } else if (content.startsWith("NOTIFICATION:")) {
+                    // Пересылка уведомлений клиентам
+                    String notification = content.substring(13);
+                    notifyClients(notification);
                 }
             } else {
                 block();

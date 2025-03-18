@@ -1,10 +1,8 @@
 agents\VehicleAgent.class
 main\ClientAgent.class
-model\MessageUtils.class
 main\ServerAgent$1.class
 agents\VehicleAgent$AssignmentBehaviour.class
 model\Good.class
-agents\ModelAgent$VehicleCreationBehaviour.class
 agents\ModelAgent.class
 model\DistributionAlgorithm.class
 main\ClientAgent$FindServerBehaviour.class
@@ -15,4 +13,3 @@ agents\ModelAgent$ServerCommandBehaviour.class
 main\ServerAgent$ClientConnectionBehaviour.class
 main\ClientAgent$ServerMessageBehaviour.class
 main\ServerAgent$ModelAgentMessageBehaviour.class
-messages\AssignmentMessage.class

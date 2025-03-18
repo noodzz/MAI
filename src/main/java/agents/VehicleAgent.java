@@ -12,9 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-/**
- * Транспортный агент, получающий задания от ModelAgent.
- */
 public class VehicleAgent extends Agent {
     private List<Good> assignedGoods = new ArrayList<>();
     private Logger logger;

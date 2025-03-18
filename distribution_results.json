@@ -1,23 +1,6 @@
 {
   "Vehicle-0": [
     {
-      "id": "toxic_waste",
-      "weight": 40,
-      "incompatibilities": [
-        "apples",
-        "bananas",
-        "oranges",
-        "meat",
-        "fish",
-        "chemicals",
-        "dairy",
-        "bread",
-        "eggs"
-      ]
-    }
-  ],
-  "Vehicle-1": [
-    {
       "id": "meat",
       "weight": 30,
       "incompatibilities": [
@@ -26,56 +9,21 @@
       ]
     },
     {
-      "id": "oranges",
-      "weight": 12,
-      "incompatibilities": [
-        "fish"
-      ]
-    },
-    {
-      "id": "bread_part0",
-      "weight": 5,
+      "id": "bananas",
+      "weight": 15,
       "incompatibilities": [
         "chemicals"
       ]
     },
     {
-      "id": "bread_part1",
-      "weight": 5,
-      "incompatibilities": [
-        "chemicals"
-      ]
-    },
-    {
-      "id": "dairy_part0",
-      "weight": 11,
-      "incompatibilities": [
-        "chemicals"
-      ]
-    },
-    {
-      "id": "dairy_part1",
-      "weight": 11,
-      "incompatibilities": [
-        "chemicals"
-      ]
-    },
-    {
-      "id": "bananas_part0",
-      "weight": 7,
-      "incompatibilities": [
-        "chemicals"
-      ]
-    },
-    {
-      "id": "bananas_part1",
-      "weight": 8,
+      "id": "bread",
+      "weight": 10,
       "incompatibilities": [
         "chemicals"
       ]
     }
   ],
-  "Vehicle-2": [
+  "Vehicle-1": [
     {
       "id": "chemicals",
       "weight": 25,
@@ -88,19 +36,56 @@
       ]
     },
     {
-      "id": "fish_part0",
-      "weight": 9,
+      "id": "fish",
+      "weight": 18,
       "incompatibilities": [
         "apples",
         "oranges"
       ]
     },
     {
-      "id": "fish_part1",
-      "weight": 9,
+      "id": "hygiene_products",
+      "weight": 10,
       "incompatibilities": [
-        "apples",
-        "oranges"
+        "meat"
+      ]
+    }
+  ],
+  "Vehicle-2": [
+    {
+      "id": "dairy",
+      "weight": 22,
+      "incompatibilities": [
+        "chemicals"
+      ]
+    },
+    {
+      "id": "apples",
+      "weight": 20,
+      "incompatibilities": [
+        "fish",
+        "meat"
+      ]
+    },
+    {
+      "id": "oranges",
+      "weight": 12,
+      "incompatibilities": [
+        "fish"
+      ]
+    },
+    {
+      "id": "eggs_part0",
+      "weight": 2,
+      "incompatibilities": [
+        "meat"
+      ]
+    },
+    {
+      "id": "eggs_part1",
+      "weight": 3,
+      "incompatibilities": [
+        "meat"
       ]
     }
   ]

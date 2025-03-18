@@ -8,17 +8,12 @@ import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
-import jade.lang.acl.MessageTemplate;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.logging.Logger;
 
-/**
- * Клиентский агент для подключения к серверу распределения товаров
- * через терминал
- */
 public class ClientAgent extends Agent {
     private AID server;
     private boolean connected = false;
@@ -52,9 +47,7 @@ public class ClientAgent extends Agent {
         logger.info("Клиент остановлен");
     }
 
-    /**
-     * Поведение для поиска сервера
-     */
+
     private class FindServerBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
@@ -89,12 +82,12 @@ public class ClientAgent extends Agent {
             if (msg != null) {
                 String content = msg.getContent();
 
-                if (content.equals("CONNECTED")) {
-                    connected = true;
-                    logger.info("Подключен к серверу успешно");
-                } else if (content.equals("DISCONNECTED")) {
-                    connected = false;
-                    logger.info("Отключен от сервера");
+                if (content.startsWith("DISTRIBUTION_RESULTS:")) {
+                    String results = content.substring(21);
+                    logger.info("[Сервер] Распределение товаров завершено. Результаты:\n" + results);
+                } else if (content.startsWith("UNASSIGNED_GOODS:")) {
+                    String unassignedGoods = content.substring(17);
+                    logger.warning("[Сервер] Некоторые товары не удалось распределить: " + unassignedGoods);
                 } else if (content.equals("PING")) {
                     // Ответ на пинг
                     ACLMessage reply = msg.createReply();
@@ -102,13 +95,9 @@ public class ClientAgent extends Agent {
                     reply.setContent("PONG");
                     send(reply);
                 } else if (content.startsWith("NOTIFICATION:")) {
+                    // Уведомления от сервера
                     String notification = content.substring(13);
-                    logger.info("[Сервер] " + content.substring(13));
-                    if (notification.contains("{")) { // Если это JSON
-                        logger.info("[Сервер] Распределение товаров завершено. Результаты:\n" + notification);
-                    } else {
-                        logger.info("[Сервер] " + notification);
-                    }
+                    logger.info("[Сервер] " + notification);
                 } else if (content.startsWith("RESULT:")) {
                     // Результат выполнения команды
                     logger.info("[Результат] " + content.substring(8));
@@ -227,7 +216,6 @@ public class ClientAgent extends Agent {
         logger.info("connect - подключиться к серверу");
         logger.info("disconnect - отключиться от сервера");
         logger.info("status - проверить статус подключения");
-        logger.info("restart - перезапустить процесс");
         logger.info("clients - список подключенных клиентов");
         logger.info("help - показать эту справку");
         logger.info("exit - выход");
