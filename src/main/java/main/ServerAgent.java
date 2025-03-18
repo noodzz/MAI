@@ -121,9 +121,6 @@ public class ServerAgent extends Agent {
                         reply.setContent("CONNECTED");
                         send(reply);
 
-                        if (connectedClients.size() == 1 && !processRunning) {
-                            startDistributionProcess();
-                        }
                     }
                 } else if (content.equals("DISCONNECT")) {
                     // Запрос на отключение
@@ -188,12 +185,6 @@ public class ServerAgent extends Agent {
             connectedClients.remove(client);
         }
 
-        // Управление процессом в зависимости от наличия клиентов
-        if (connectedClients.isEmpty() && processRunning) {
-            stopDistributionProcess();
-        } else if (!connectedClients.isEmpty() && !processRunning) {
-            startDistributionProcess();
-        }
     }
 
     /**

@@ -22,6 +22,8 @@ public class ClientAgent extends Agent {
     protected void setup() {
         logger.info("Клиент запущен. Используйте команды в терминале для управления:");
         logger.info("connect - подключиться к серверу");
+        logger.info("start - начать распределение");
+        logger.info("stop - закончить распределение");
         logger.info("disconnect - отключиться от сервера");
         logger.info("status - проверить статус");
         logger.info("help - список команд");
@@ -82,7 +84,10 @@ public class ClientAgent extends Agent {
             if (msg != null) {
                 String content = msg.getContent();
 
-                if (content.startsWith("DISTRIBUTION_RESULTS:")) {
+                if (content.equals("CONNECTED")) {
+                    connected = true; // Устанавливаем флаг подключения
+                    logger.info("[Сервер] Подключен к серверу.");
+                } else if (content.startsWith("DISTRIBUTION_RESULTS:")) {
                     String results = content.substring(21);
                     logger.info("[Сервер] Распределение товаров завершено. Результаты:\n" + results);
                 } else if (content.startsWith("UNASSIGNED_GOODS:")) {
@@ -134,6 +139,8 @@ public class ClientAgent extends Agent {
                         sendConnectRequest();
                     } else if (input.equalsIgnoreCase("disconnect")) {
                         sendDisconnectRequest();
+                    } else if (input.equalsIgnoreCase("start")) {
+                        sendCommand("start");
                     } else if (input.equalsIgnoreCase("status")) {
                         logger.info("Статус: " + (connected ? "Подключен" : "Отключен"));
                         if (server != null) {
@@ -214,9 +221,10 @@ public class ClientAgent extends Agent {
     private void showHelp() {
         logger.info("=== Список команд ===");
         logger.info("connect - подключиться к серверу");
-        logger.info("disconnect - отключиться от сервера");
+        logger.info("disconnect - отключиться от серверу");
         logger.info("status - проверить статус подключения");
-        logger.info("clients - список подключенных клиентов");
+        logger.info("start - запустить процесс распределения");
+        logger.info("stop - остановить процесс распределения");
         logger.info("help - показать эту справку");
         logger.info("exit - выход");
     }
