@@ -37,7 +37,7 @@
     },
     {
       "id": "dairy",
-      "weight": 22,
+      "weight": 42,
       "incompatibilities": ["chemicals"]
     },
     {

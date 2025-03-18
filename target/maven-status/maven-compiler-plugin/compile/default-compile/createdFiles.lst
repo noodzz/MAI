@@ -13,3 +13,4 @@ agents\ModelAgent$ServerCommandBehaviour.class
 main\ServerAgent$ClientConnectionBehaviour.class
 main\ClientAgent$ServerMessageBehaviour.class
 main\ServerAgent$ModelAgentMessageBehaviour.class
+agents\VehicleAgent$CapacityRequestBehaviour.class

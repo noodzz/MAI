@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 
 public class ModelAgent extends Agent {
@@ -65,17 +66,19 @@ public class ModelAgent extends Agent {
     }
 
     private void createVehicleAgents() {
+        int[] capacities = {55, 60, 65};
         for (int i = 0; i < numVehicles; i++) {
             String vehicleName = "Vehicle-" + i;
             try {
+                Object[] args = new Object[] { capacities[i] }; // Передаем грузоподъемность
                 AgentController ac = getContainerController().createNewAgent(
                         vehicleName,
                         "agents.VehicleAgent",
-                        null
+                        args
                 );
                 ac.start();
                 vehicleAgents.put(vehicleName, new AID(vehicleName, AID.ISLOCALNAME));
-                logger.info("Создан транспортный агент: " + vehicleName);
+                logger.info("Создан транспортный агент: " + vehicleName + ", грузоподъемность: " + capacities[i] + " кг.");
             } catch (Exception e) {
                 logger.severe("Ошибка создания агента " + vehicleName + ": " + e.getMessage());
             }
@@ -153,19 +156,14 @@ public class ModelAgent extends Agent {
     }
 
     private void distributeGoods() {
-        DistributionAlgorithm algorithm = new DistributionAlgorithm(goods, vehicleAgents, logger, this, serverAgent);
+        Map<String, Integer> vehicleCapacities = getVehicleCapacities();
+        DistributionAlgorithm algorithm = new DistributionAlgorithm(goods, vehicleAgents, vehicleCapacities, logger, this, serverAgent);
         Map<String, List<Good>> distribution = algorithm.distributeGoods();
         ACLMessage startNotification = new ACLMessage(ACLMessage.INFORM);
         startNotification.addReceiver(serverAgent);
         startNotification.setContent("NOTIFICATION: Начало распределения товаров.");
         send(startNotification);
-        List<Good> unassignedGoods = new ArrayList<>();
-        for (Good good : goods) {
-            if (!isGoodFullyAssigned(good, distribution)) {
-                unassignedGoods.add(good);
-            }
 
-        }
         sendAssignments(distribution);
 
         Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().setPrettyPrinting().create();
@@ -175,6 +173,7 @@ public class ModelAgent extends Agent {
         distributionMsg.setContent("DISTRIBUTION_RESULTS:" + gson.toJson(distribution));
         send(distributionMsg);
 
+        List<Good> unassignedGoods = algorithm.getUnassignedGoods();
         if (!unassignedGoods.isEmpty()) {
             ACLMessage unassignedMsg = new ACLMessage(ACLMessage.INFORM);
             unassignedMsg.addReceiver(serverAgent);
@@ -193,10 +192,14 @@ public class ModelAgent extends Agent {
 
 
     private void sendAssignments(Map<String, List<Good>> distribution) {
+        Gson gson = new GsonBuilder()
+                .excludeFieldsWithoutExposeAnnotation() // Добавьте настройку
+                .create();
+
         distribution.forEach((vehicleName, goods) -> {
             ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
             msg.addReceiver(new AID(vehicleName, AID.ISLOCALNAME));
-            msg.setContent(new Gson().toJson(goods));
+            msg.setContent(gson.toJson(goods)); // Теперь сериализация с учетом @Expose
             send(msg);
         });
     }
@@ -214,14 +217,49 @@ public class ModelAgent extends Agent {
     }
     private boolean isGoodFullyAssigned(Good good, Map<String, List<Good>> distribution) {
         String normalizedId = good.normalizeId(good.getId());
+        boolean isPart = good.getId().matches(".*_part\\d+$");
 
-        for (List<Good> assignedGoods : distribution.values()) {
-            for (Good assignedGood : assignedGoods) {
-                if (normalizedId.equals(assignedGood.normalizeId(assignedGood.getId()))) {
-                    return true;
-                }
+        // Если это часть, проверяем её наличие в распределении
+        if (isPart) {
+            return distribution.values().stream()
+                    .flatMap(List::stream)
+                    .anyMatch(g -> g.getId().equals(good.getId()));
+        }
+
+        // Если это целый товар, проверяем все его части
+        List<Good> allParts = goods.stream()
+                .filter(g -> g.normalizeId(g.getId()).equals(normalizedId))
+                .collect(Collectors.toList());
+
+        long assignedParts = distribution.values().stream()
+                .flatMap(List::stream)
+                .filter(g -> g.normalizeId(g.getId()).equals(normalizedId))
+                .count();
+
+        return assignedParts == allParts.size();
+    }
+    private Map<String, Integer> getVehicleCapacities() {
+        Map<String, Integer> capacities = new HashMap<>();
+        for (Map.Entry<String, AID> entry : vehicleAgents.entrySet()) {
+            String vehicleName = entry.getKey();
+            AID vehicleAID = entry.getValue();
+
+            // Отправляем запрос на получение грузоподъемности
+            ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
+            msg.addReceiver(vehicleAID);
+            msg.setContent("GET_CAPACITY");
+            send(msg);
+
+            // Ждем ответа
+            ACLMessage reply = blockingReceive(MessageTemplate.MatchSender(vehicleAID));
+            if (reply != null && reply.getPerformative() == ACLMessage.INFORM) {
+                int capacity = Integer.parseInt(reply.getContent());
+                capacities.put(vehicleName, capacity);
+                logger.info("Грузоподъемность " + vehicleName + ": " + capacity + " кг.");
+            } else {
+                logger.warning("Не удалось получить грузоподъемность от " + vehicleName);
             }
         }
-        return false;
+        return capacities;
     }
 }

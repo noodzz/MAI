@@ -16,6 +16,9 @@ public class DistributionAlgorithm {
     private final Logger logger;
     private final Agent agent;
     private final AID serverAgent;
+    private final Map<String, Integer> vehicleCapacities;
+    private List<Good> unassignedGoods;
+
 
     /**
      * Конструктор алгоритма распределения
@@ -24,14 +27,20 @@ public class DistributionAlgorithm {
      * @param vehicleAgents карта имен транспортных агентов и их идентификаторов
      * @param logger логгер для записи сообщений
      */
-    public DistributionAlgorithm(List<Good> goods, Map<String, AID> vehicleAgents, Logger logger, Agent agent, AID serverAgent) {
+    public DistributionAlgorithm(List<Good> goods, Map<String, AID> vehicleAgents, Map<String, Integer> vehicleCapacities, Logger logger, Agent agent, AID serverAgent) {
         this.goods = new ArrayList<>(goods);
         this.vehicleAgents = vehicleAgents;
+        this.vehicleCapacities = vehicleCapacities;
         this.logger = logger;
         this.agent = agent;
         this.serverAgent = serverAgent;
     }
-
+    public List<Good> getGoods() {
+        return goods;
+    }
+    public List<Good> getUnassignedGoods() {
+        return unassignedGoods;
+    }
     /**
      * Метод для распределения товаров между транспортными агентами
      *
@@ -39,7 +48,7 @@ public class DistributionAlgorithm {
      */
     public Map<String, List<Good>> distributeGoods() {
         logger.info("Начало процесса распределения товаров");
-
+        unassignedGoods = new ArrayList<>();
         // Подсчет общего веса товаров
         int totalWeight = goods.stream().mapToInt(Good::getWeight).sum();
         logger.info("Общий вес всех товаров: " + totalWeight);
@@ -68,19 +77,22 @@ public class DistributionAlgorithm {
         }
 
         // Первичное распределение товаров (жадный алгоритм)
-        distributeGoodsGreedy(sortedGoods, initialDistribution, targetWeightPerVehicle);
+        distributeGoodsGreedy(sortedGoods, initialDistribution, targetWeightPerVehicle, unassignedGoods);
 
         // Проверка и корректировка совместимости товаров
-        Map<String, List<Good>> finalDistribution = checkAndFixIncompatibilities(initialDistribution);
-        List<Good> unassignedGoods = new ArrayList<>();
+        Map<String, List<Good>> finalDistribution = checkAndFixIncompatibilities(initialDistribution, unassignedGoods);
         for (Good good : goods) {
-            if (!good.isAssigned() && !isGoodSplitAndAssigned(good, finalDistribution)) { // Учитываем только нераспределенные товары
-                unassignedGoods.add(good);
-            }
-        }
+            if (good.isAssigned()) {
+                // Если товар был распределен, не добавляем его в unassignedGoods
+                boolean alreadyAssigned = finalDistribution.values().stream()
+                        .flatMap(List::stream)
+                        .anyMatch(g -> g.getId().equals(good.getId()));
 
-        if (!unassignedGoods.isEmpty()) {
-            logger.warning("Некоторые товары не удалось распределить: " + unassignedGoods);
+                if (!alreadyAssigned) {
+                    // Если товар по какой-то причине не оказался в распределении, добавляем его в unassignedGoods
+                    unassignedGoods.add(good);
+                }
+            }
         }
 
         return finalDistribution;
@@ -93,18 +105,24 @@ public class DistributionAlgorithm {
      * @return true, если все части товара распределены, иначе false
      */
     private boolean isGoodSplitAndAssigned(Good good, Map<String, List<Good>> distribution) {
-        String normalizedGoodId = good.normalizeId(good.getId());
+        // Нормализуем ID товара
+        String normalizedId = good.normalizeId(good.getId());
 
-        for (List<Good> assignedGoods : distribution.values()) {
-            for (Good assignedGood : assignedGoods) {
-                if (normalizedGoodId.equals(assignedGood.normalizeId(assignedGood.getId()))) {
-                    assignedGood.setAssigned(true);  // Обновляем статус
-                    return true;
-                }
-            }
-        }
-        return false;
+        // Считаем количество всех частей товара
+        long totalParts = goods.stream()
+                .filter(g -> g.normalizeId(g.getId()).equals(normalizedId))
+                .count();
+
+        // Считаем количество назначенных частей
+        long assignedParts = distribution.values().stream()
+                .flatMap(List::stream)
+                .filter(g -> g.normalizeId(g.getId()).equals(normalizedId))
+                .count();
+
+        // Если количество назначенных частей равно количеству всех частей товара, считаем товар назначенным
+        return assignedParts >= totalParts;
     }
+
 
     /**
      * Жадный алгоритм распределения товаров
@@ -113,7 +131,7 @@ public class DistributionAlgorithm {
      * @param distribution текущее распределение
      * @param targetWeight целевой вес на каждый транспорт
      */
-    private void distributeGoodsGreedy(List<Good> sortedGoods, Map<String, List<Good>> distribution, int targetWeight) {
+    private void distributeGoodsGreedy(List<Good> sortedGoods, Map<String, List<Good>> distribution, int targetWeight, List<Good> unassignedGoods) {
         logger.info("Применение жадного алгоритма распределения");
 
         ACLMessage startGreedyNotification = new ACLMessage(ACLMessage.INFORM);
@@ -131,6 +149,10 @@ public class DistributionAlgorithm {
         for (Good good : sortedGoods) {
             // Находим транспорт с наименьшим текущим весом
             String targetVehicle = currentWeights.entrySet().stream()
+                    .filter(entry -> {
+                        int potentialWeight = entry.getValue() + good.getWeight();
+                        return potentialWeight <= vehicleCapacities.get(entry.getKey()); // Проверка
+                    })
                     .min(Map.Entry.comparingByValue())
                     .map(Map.Entry::getKey)
                     .orElse(null);
@@ -146,6 +168,9 @@ public class DistributionAlgorithm {
                 assignmentNotification.addReceiver(serverAgent);
                 assignmentNotification.setContent("NOTIFICATION: Товар " + good.getId() + " назначен транспорту " + targetVehicle);
                 agent.send(assignmentNotification);
+            } else {
+                logger.warning("Товар " + good.getId() + " не может быть размещён (превышена грузоподъёмность)");
+                unassignedGoods.add(good);
             }
             try {
                 Thread.sleep(2000);
@@ -169,7 +194,7 @@ public class DistributionAlgorithm {
      * @param distribution начальное распределение
      * @return новое распределение без несовместимостей
      */
-    private Map<String, List<Good>> checkAndFixIncompatibilities(Map<String, List<Good>> distribution) {
+    private Map<String, List<Good>> checkAndFixIncompatibilities(Map<String, List<Good>> distribution, List<Good> unassignedGoods) {
         logger.info("Проверка совместимости товаров...");
         Map<String, List<Good>> newDistribution = new HashMap<>();
         List<Good> incompatibleGoods = new ArrayList<>(); // Список для несовместимых товаров
@@ -195,7 +220,7 @@ public class DistributionAlgorithm {
             newDistribution.put(entry.getKey(), compatibleGoods);
         }
         if (!incompatibleGoods.isEmpty()) {
-            handleIncompatibleGoods(incompatibleGoods, newDistribution);
+            handleIncompatibleGoods(incompatibleGoods, newDistribution, unassignedGoods);
         }
         return newDistribution;
     }
@@ -206,35 +231,60 @@ public class DistributionAlgorithm {
      * @param incompatibleGoods список несовместимых товаров
      * @param distribution текущее распределение
      */
-    private void handleIncompatibleGoods(List<Good> incompatibleGoods, Map<String, List<Good>> distribution) {
+    private void handleIncompatibleGoods(
+            List<Good> incompatibleGoods,
+            Map<String, List<Good>> distribution,
+            List<Good> unassignedGoods
+    ) {
         logger.info("Обработка несовместимых товаров: " + incompatibleGoods.size() + " товаров");
         List<Good> newGoods = new ArrayList<>();
+        List<Good> unassignedParts = new ArrayList<>();
 
         for (Good good : incompatibleGoods) {
             if (good.getWeight() > 1) {
                 logger.info("Разделение товара " + good.getId() + " на части");
 
-                List<Good> parts = good.split(new int[]{good.getWeight() / 2, good.getWeight() - good.getWeight() / 2});
-
+                // Делим товар на части
+                int[] partWeights = {
+                        good.getWeight() / 2,
+                        good.getWeight() - good.getWeight() / 2
+                };
+                List<Good> parts = good.split(partWeights);
+                goods.remove(good); // Удаляем исходный товар
+                goods.addAll(parts); // Добавляем ВСЕ части в goods
                 for (Good part : parts) {
-                    assignGoodToCompatibleVehicle(part, distribution);
-                    part.setAssigned(true);
-                    newGoods.add(part);
+                    // Пытаемся распределить часть
+                    boolean assigned = assignGoodToCompatibleVehicle(part, distribution);
+                    part.setAssigned(assigned);
+
+                    if (assigned) {
+                        newGoods.add(part);
+                    } else {
+                        unassignedParts.add(part); // Неудачные части
+                    }
                 }
             } else {
-                newGoods.add(good);
+                // Для товаров, которые нельзя разделить
+                boolean assigned = assignGoodToCompatibleVehicle(good, distribution);
+                good.setAssigned(assigned);
+
+                if (assigned) {
+                    newGoods.add(good);
+                } else {
+                    unassignedParts.add(good); // Неудачные целые товары
+                }
             }
         }
 
-        goods.clear(); // Очищаем список
-        goods.addAll(newGoods);
+        // Добавляем все неудачные части/товары в общий список
+        unassignedGoods.addAll(unassignedParts);
+
         logTotalWeights(distribution);
         try {
-            Thread.sleep(2000);
+            Thread.sleep(2000); // Имитация задержки
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
     }
 
     /**
@@ -254,11 +304,13 @@ public class DistributionAlgorithm {
             for (Map.Entry<String, List<Good>> entry : distribution.entrySet()) {
                 String vehicleName = entry.getKey();
                 List<Good> vehicleGoods = entry.getValue();
+                int currentWeight = vehicleGoods.stream().mapToInt(Good::getWeight).sum();
 
                 boolean isCompatible = vehicleGoods.stream()
                         .allMatch(existingGood -> good.isCompatibleWith(existingGood));
+                boolean canFit = (currentWeight + good.getWeight()) <= vehicleCapacities.get(vehicleName);
 
-                if (isCompatible) {
+                if (isCompatible && canFit) {
                     vehicleGoods.add(good);
                     logger.info("Товар " + good.getId() + " назначен транспорту " + vehicleName);
                     good.setAssigned(true);
@@ -295,7 +347,4 @@ public class DistributionAlgorithm {
             agent.send(vehicleNotification);
         }
     }
-
-
-
 }

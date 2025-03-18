@@ -1,6 +1,22 @@
 {
   "Vehicle-0": [
     {
+      "id": "dairy",
+      "weight": 42,
+      "incompatibilities": [
+        "chemicals"
+      ]
+    },
+    {
+      "id": "oranges",
+      "weight": 12,
+      "incompatibilities": [
+        "fish"
+      ]
+    }
+  ],
+  "Vehicle-1": [
+    {
       "id": "meat",
       "weight": 30,
       "incompatibilities": [
@@ -9,21 +25,22 @@
       ]
     },
     {
-      "id": "bananas",
-      "weight": 15,
+      "id": "fish",
+      "weight": 18,
       "incompatibilities": [
-        "chemicals"
+        "apples",
+        "oranges"
       ]
     },
     {
-      "id": "bread",
-      "weight": 10,
+      "id": "bananas_part0",
+      "weight": 7,
       "incompatibilities": [
         "chemicals"
       ]
     }
   ],
-  "Vehicle-1": [
+  "Vehicle-2": [
     {
       "id": "chemicals",
       "weight": 25,
@@ -36,30 +53,6 @@
       ]
     },
     {
-      "id": "fish",
-      "weight": 18,
-      "incompatibilities": [
-        "apples",
-        "oranges"
-      ]
-    },
-    {
-      "id": "hygiene_products",
-      "weight": 10,
-      "incompatibilities": [
-        "meat"
-      ]
-    }
-  ],
-  "Vehicle-2": [
-    {
-      "id": "dairy",
-      "weight": 22,
-      "incompatibilities": [
-        "chemicals"
-      ]
-    },
-    {
       "id": "apples",
       "weight": 20,
       "incompatibilities": [
@@ -68,22 +61,15 @@
       ]
     },
     {
-      "id": "oranges",
-      "weight": 12,
-      "incompatibilities": [
-        "fish"
-      ]
-    },
-    {
-      "id": "eggs_part0",
-      "weight": 2,
+      "id": "hygiene_products_part0",
+      "weight": 5,
       "incompatibilities": [
         "meat"
       ]
     },
     {
-      "id": "eggs_part1",
-      "weight": 3,
+      "id": "hygiene_products_part1",
+      "weight": 5,
       "incompatibilities": [
         "meat"
       ]
