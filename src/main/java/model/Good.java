@@ -11,7 +11,6 @@ public class Good {
     private String id;
     @Expose
     private int weight;
-    @Expose
     private List<String> incompatibilities;
 
     private boolean isAssigned; // Флаг для пометки распределенных товаров

@@ -1,0 +1,44 @@
+{
+  "Vehicle-0": [
+    {
+      "id": "dairy",
+      "weight": 42
+    },
+    {
+      "id": "oranges",
+      "weight": 12
+    }
+  ],
+  "Vehicle-1": [
+    {
+      "id": "meat",
+      "weight": 30
+    },
+    {
+      "id": "fish",
+      "weight": 18
+    },
+    {
+      "id": "bananas_part0",
+      "weight": 7
+    }
+  ],
+  "Vehicle-2": [
+    {
+      "id": "chemicals",
+      "weight": 25
+    },
+    {
+      "id": "apples",
+      "weight": 20
+    },
+    {
+      "id": "hygiene_products_part0",
+      "weight": 5
+    },
+    {
+      "id": "hygiene_products_part1",
+      "weight": 5
+    }
+  ]
+}
