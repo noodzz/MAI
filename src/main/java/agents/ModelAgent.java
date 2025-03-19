@@ -17,9 +17,8 @@ import model.Good;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -137,7 +136,11 @@ public class ModelAgent extends Agent {
     private void loadGoodsFromJson() {
         try {
             JSONParser parser = new JSONParser();
-            JSONObject jsonObject = (JSONObject) parser.parse(new FileReader("src/main/resources/goods.json"));
+            InputStream inputStream = getClass().getClassLoader().getResourceAsStream("goods.json");
+            if (inputStream == null) {
+                throw new FileNotFoundException("Файл goods.json не найден в ресурсах!");
+            }
+            JSONObject jsonObject = (JSONObject) parser.parse(new InputStreamReader(inputStream));
             JSONArray goodsArray = (JSONArray) jsonObject.get("goods");
             for (Object obj : goodsArray) {
                 JSONObject goodJson = (JSONObject) obj;
